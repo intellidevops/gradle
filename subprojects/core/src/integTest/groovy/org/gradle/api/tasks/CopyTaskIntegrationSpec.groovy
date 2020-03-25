@@ -210,6 +210,40 @@ class CopyTaskIntegrationSpec extends AbstractIntegrationSpec {
         file('dest/a.txt').text == "1 + 2"
     }
 
+    def "can filter content using a closure when copying"() {
+        file('files/a.txt').text = "one"
+        file('files/b.txt').text = "two"
+        buildScript """
+            task copy(type: Copy) {
+                from 'files'
+                into 'dest'
+                filter { return it.replaceAll("one", "1").replaceAll("two", "2") }
+            }
+        """
+
+        when:
+        run 'copy'
+
+        then:
+        file('dest/a.txt').text == "1"
+        file('dest/b.txt').text == "2"
+
+        when:
+        run 'copy'
+
+        then:
+        result.assertTaskSkipped(':copy')
+        file('dest/a.txt').text == "1"
+
+        when:
+        file('files/a.txt').text = "one + two"
+        run 'copy'
+
+        then:
+        result.assertTaskNotSkipped(':copy')
+        file('dest/a.txt').text == "1 + 2"
+    }
+
     def "useful help message when property cannot be expanded"() {
         given:
         buildFile << """
